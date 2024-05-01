@@ -406,19 +406,26 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
 
     return final_state_dict
 
+# return recon_matrix rows of models, columns of layers
 def get_reconstruction_error(lolas_dict):
     reconstruction_errors = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # we want to have a list of list (matrix), first list is across models, other layers
+    recon_matrix = np.zeros((len(list(lolas_dict)[0][1])), len(lolas_dict))
+    j = 0
     for (A_key, B_key), values in lolas_dict.items():
+        j += 1
         U, sigmas, V, As, Bs = values
         U, V = U.to(device), V.to(device)
         for i in range(len(sigmas)):
+            
             reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
+            recon_matrix[i,j] = reconstruction_error.item()
             #print(reconstruction_error)
-        reconstruction_errors.append(reconstruction_error.item())
+        #reconstruction_errors.append(reconstruction_error.item())
 
-    reconstruction_errors = np.array(reconstruction_errors)
+    #reconstruction_errors = np.array(reconstruction_errors)
     # print mean and std
-    print("Reconstruction error mean: ", np.mean(reconstruction_errors), "std: ", np.std(reconstruction_errors))
-    return reconstruction_errors
+    #print("Reconstruction error mean: ", np.mean(reconstruction_errors), "std: ", np.std(reconstruction_errors))
+    return recon_matrix
