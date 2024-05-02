@@ -318,7 +318,7 @@ def set_leaf_module(model, key_to_change, new_weight):
         target_module.weight = torch.nn.Parameter(new_weight)
 
 # cache is expected to be a dictionary of state_dicts, where the keys are the model_ids
-def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0):
+def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, transform_lora="none"):
 
     print("[!] lola_loras", "rank", r, "sparse_reg", sparse_reg)
 
@@ -347,9 +347,10 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0):
                 before_lora_dict[ pre_key ].append( (key, lora_state_dict[key], peft_model_id) )
 
     # We want to iterate through models_ids
-    for key in before_lora_dict.keys(): # Will be iterated same order as inserted
+    for key in before_lora_dict.keys(): # Will be iterated same order as inserted. Should be same order as models
         As, Bs = [], []
         A_key, B_key = None, None
+        norms_A, norms_B = [], []
         
         assert(len(before_lora_dict[key])//2 == len(lora_module_list)) # one per model and lora, vs one per model
 
@@ -361,13 +362,26 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0):
                 # This is a hack for random A, B
                 #randm = torch.randn_like(weight)
                 #weight = randm / torch.norm(randm, p='fro') * torch.norm(weight, p='fro')
+                
+                if transform_lora == "normalize":
+                    norm_factor = torch.norm(weight, p='fro')
+                    weight = weight / norm_factor
+                else:
+                    norm_factor = 1.0
                 As.append(weight)
+                norms_A.append(norm_factor)
                 A_key = long_key
             elif "lora_B" in long_key:
                 # This is a hack for random A, B
                 #randm = torch.randn_like(weight)
                 #weight = randm / torch.norm(randm, p='fro') * torch.norm(weight, p='fro')
+                if transform_lora == "normalize":
+                    norm_factor = torch.norm(weight, p='fro')
+                    weight = weight / norm_factor
+                else:
+                    norm_factor = 1.0
                 Bs.append(weight)
+                norms_B.append(norm_factor)
                 B_key = long_key
             else:
                 # throw error
@@ -382,7 +396,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0):
         else:
             raise ValueError("Invalid type")
 
-        lola_dict[(A_key, B_key)] = (U, sigmas, V, As, Bs) # including As and Bs too for reconstruction error, etc
+        lola_dict[(A_key, B_key)] = (U, sigmas, V, As, Bs, norms_A, norms_B) # including As and Bs too for reconstruction error, etc
     
     return lola_dict 
 
@@ -395,9 +409,9 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
             return_only_lora_index = i 
 
     for (A_key, B_key), values in lolas_dict.items():
-        U, sigmas, V, _, _ = values
+        U, sigmas, V, _, _, norm_A, norm_B = values
         A_m = V.t() # The V.t() part
-        B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) # The (U @ sigma) part
+        B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
         final_state_dict[A_key] = A_m 
         final_state_dict[B_key] = B_m 
 
@@ -416,7 +430,7 @@ def get_reconstruction_error(lolas_dict):
     j = -1
     for (A_key, B_key), values in lolas_dict.items():
         j += 1
-        U, sigmas, V, As, Bs = values
+        U, sigmas, V, As, Bs, _, _ = values
         U, V = U.to(device), V.to(device)
         for i in range(len(sigmas)):
             
