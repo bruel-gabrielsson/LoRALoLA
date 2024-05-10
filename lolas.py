@@ -401,6 +401,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
     return lola_dict 
 
 # lora_module_list should be exact same list as used to create the lola_dict
+# [!] what if model is lora peft model, the uncompressed one?
 def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
     final_state_dict = {}
     return_only_lora_index = None
@@ -408,10 +409,25 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
         if return_only_lora == peft_model_id:
             return_only_lora_index = i 
 
+    org_state_dict = model.state_dict()
+    if return_only_lora_index is None:
+        print("[!] Obs, we'll project LoRA to compress, assume LoRA model passed")
+
     for (A_key, B_key), values in lolas_dict.items():
         U, sigmas, V, _, _, norm_A, norm_B = values
-        A_m = V.t() # The V.t() part
-        B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+        
+
+        if return_only_lora_index is None:
+            raise NotImplementedError("Not implemented")
+            A_m = V.t() # The V.t() part
+            A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
+            # what if U, V aren't orthogonal? Then U.t() @ U != I, V.t() @ V != I. Do I need to do a linear solve?
+            # sigma = U.t() @ B @ A @ V
+            sigma = U @ U.t() @ B @ A @ V 
+        else:
+            A_m = V.t() # The V.t() part
+            B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+        
         final_state_dict[A_key] = A_m 
         final_state_dict[B_key] = B_m 
 
