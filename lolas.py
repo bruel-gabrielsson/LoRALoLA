@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 
+from peft.utils.save_and_load import set_peft_model_state_dict, get_peft_model_state_dict
+
 # This expect lora to be W + AB^T
 def full_lora_pca(A, B, r, niter=10, display=True):
     m = A[0].shape[0]
@@ -411,7 +413,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
         if return_only_lora == peft_model_id:
             return_only_lora_index = i 
 
-    org_state_dict = model.state_dict()
+    org_state_dict = get_peft_model_state_dict(model) # model.state_dict()
     if return_only_lora_index is None:
         print("[!] Obs, we'll project LoRA to compress, assume LoRA model passed")
 
@@ -422,7 +424,8 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
 
         if return_only_lora_index is None:
             #raise NotImplementedError("Not implemented")
-            print(org_state_dict)
+            #print(org_state_dict) # 'base_model.model.model.layers.31.self_attn.k_proj.lora_B.default.weight'
+            # KeyError: 'base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight'
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
 
             A_m = V.t() # The V.t() part
