@@ -404,7 +404,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 
 # lora_module_list should be exact same list as used to create the lola_dict
 # [!] what if model is lora peft model, the uncompressed one?
-def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
+def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, type="diagonal"):
     final_state_dict = {}
     return_only_lora_index = None
     for i, peft_model_id in enumerate(lora_module_list): # across models, i is the model number
@@ -424,8 +424,20 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora):
             A_m = V.t() # The V.t() part
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
             # what if U, V aren't orthogonal? Then U.t() @ U != I, V.t() @ V != I. Do I need to do a linear solve?
+            # BA = U @ sigma @ V.t()
             # sigma = U.t() @ B @ A @ V
-            sigma = U @ U.t() @ B @ A @ V 
+            # X = pinv(U) *(BA) *pinv(V).t() ### K
+            # # X = pinv(U) *(BA) *pinv(V.t()) ### K
+            if type == "full":
+                # orthogonal
+                sigma = U.t() @ B @ A @ V
+                B_m = U @ sigma
+
+            elif type == "diagonal":
+                raise NotImplementedError("Not implemented")
+            else:
+                raise ValueError("Invalid type")
+            
         else:
             A_m = V.t() # The V.t() part
             B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
