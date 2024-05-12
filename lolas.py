@@ -420,9 +420,12 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
         
 
         if return_only_lora_index is None:
-            raise NotImplementedError("Not implemented")
-            A_m = V.t() # The V.t() part
+            #raise NotImplementedError("Not implemented")
+            
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
+
+            A_m = V.t() # The V.t() part
+
             # what if U, V aren't orthogonal? Then U.t() @ U != I, V.t() @ V != I. Do I need to do a linear solve?
             # BA = U @ sigma @ V.t()
             # sigma = U.t() @ B @ A @ V
@@ -432,6 +435,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 # orthogonal
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
+                 
 
             elif type == "diagonal":
                 raise NotImplementedError("Not implemented")
