@@ -415,13 +415,14 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
     if return_only_lora_index is None:
         print("[!] Obs, we'll project LoRA to compress, assume LoRA model passed")
 
+    # lolas_dict is from the one involved in compression, not targets
     for (A_key, B_key), values in lolas_dict.items():
         U, sigmas, V, _, _, norm_A, norm_B = values
         
 
         if return_only_lora_index is None:
             #raise NotImplementedError("Not implemented")
-            
+            print(org_state_dict)
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
 
             A_m = V.t() # The V.t() part
