@@ -366,8 +366,10 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 if transform_lora == "normalize":
                     norm_factor = torch.norm(weight, p='fro')
                     weight = weight / norm_factor
-                else:
+                elif transform_lora == "none":
                     norm_factor = 1.0
+                else:
+                    raise ValueError("Invalid transform_lora")
                 As.append(weight)
                 norms_A.append(norm_factor)
                 A_key = long_key
