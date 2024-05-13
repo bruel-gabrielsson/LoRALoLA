@@ -441,8 +441,8 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
                 # debug
-                A_m = A
-                B_m = B
+                #A_m = A
+                #B_m = B
 
             elif type == "diagonal":
                 raise NotImplementedError("Not implemented")
