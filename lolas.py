@@ -397,6 +397,18 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
             U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
             U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
+        elif type == "SVD":
+            Us, Vs, Sigmas = [], [], []
+            for i in range(len(As)):
+                # A = Udiag(S)V.t()
+                U, S, V = torch.svd_lowrank(Bs[i].to(torch.device("cuda")) @ As[i].to(torch.device("cuda")), q=r+2, niter=2)
+                # U [d_out, r] [r, r] [d_in, r]
+                Us.append(U[:,:r])
+                Vs.append(V[:,:r])
+                Sigmas.append(S[:r, :r])
+            A, B = As[return_only_lora_index], Bs[return_only_lora_index]
+            torch.svd_lowrank(B@A, q=r+2, niter=2)[0][:,:r]
+            U, V, sigmas = Us, Vs, Sigmas
         else:
             raise ValueError("Invalid type")
 
@@ -419,7 +431,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
 
     # lolas_dict is from the one involved in compression, not targets
     for (A_key, B_key), values in lolas_dict.items():
-        U, sigmas, V, _, _, norm_A, norm_B = values
+        U, sigmas, V, As, Bs, norm_A, norm_B = values
         
 
         if return_only_lora_index is None:
@@ -450,9 +462,17 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 raise ValueError("Invalid type")
             
         else:
-            A_m = V.t() # The V.t() part
-            B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
-        
+
+            if type=="full" or type=="diagonal":
+                A_m = V.t() # The V.t() part
+                B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+            elif type=="SVD":
+                this_U, this_V, sigma = U[return_only_lora_index], V[return_only_lora_index], sigmas[return_only_lora_index] 
+                A_m = V.t() # The V.t() part
+                B_m = U @ sigma.reshape(sigma.shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+            else:
+                raise ValueError("Invalid type")
+
         final_state_dict[A_key] = A_m 
         final_state_dict[B_key] = B_m 
 
@@ -462,7 +482,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
     return final_state_dict
 
 # return recon_matrix rows of models, columns of layers
-def get_reconstruction_error(lolas_dict):
+def get_reconstruction_error(lolas_dict, type="full"):
     reconstruction_errors = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
