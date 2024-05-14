@@ -467,8 +467,8 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 B_m = U @ sigmas[return_only_lora_index].reshape(sigmas[return_only_lora_index].shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
             elif type=="SVD":
                 this_U, this_V, sigma = U[return_only_lora_index], V[return_only_lora_index], sigmas[return_only_lora_index] 
-                A_m = V.t() # The V.t() part
-                B_m = U @ torch.diag(sigma) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+                A_m = this_V.t() # The V.t() part
+                B_m = this_U @ torch.diag(sigma) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
             else:
                 raise ValueError("Invalid type")
 
