@@ -405,7 +405,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 # U [d_out, r] [r, r] [d_in, r]
                 Us.append(U[:,:r])
                 Vs.append(V[:,:r])
-                Sigmas.append(S[:r, :r])
+                Sigmas.append(S[:r])
             A, B = As[return_only_lora_index], Bs[return_only_lora_index]
             torch.svd_lowrank(B@A, q=r+2, niter=2)[0][:,:r]
             U, V, sigmas = Us, Vs, Sigmas
@@ -469,7 +469,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             elif type=="SVD":
                 this_U, this_V, sigma = U[return_only_lora_index], V[return_only_lora_index], sigmas[return_only_lora_index] 
                 A_m = V.t() # The V.t() part
-                B_m = U @ sigma.reshape(sigma.shape) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+                B_m = U @ torch.diag(sigma) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
             else:
                 raise ValueError("Invalid type")
 
