@@ -406,8 +406,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 Us.append(U[:,:r])
                 Vs.append(V[:,:r])
                 Sigmas.append(S[:r])
-            A, B = As[return_only_lora_index], Bs[return_only_lora_index]
-            torch.svd_lowrank(B@A, q=r+2, niter=2)[0][:,:r]
+            
             U, V, sigmas = Us, Vs, Sigmas
         else:
             raise ValueError("Invalid type")
