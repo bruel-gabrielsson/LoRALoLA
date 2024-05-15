@@ -4,7 +4,7 @@ import numpy as np
 from peft.utils.save_and_load import set_peft_model_state_dict, get_peft_model_state_dict
 
 # This expect lora to be W + AB^T
-def full_lora_pca(A, B, r, niter=10, display=True:
+def full_lora_pca(A, B, r, niter=10, display=True):
     m = A[0].shape[0]
     n = B[0].shape[0]
     if display:
