@@ -20,7 +20,7 @@ def full_lora_pca(A, B, r, niter=10, display=True):
     # V, _ = torch.linalg.qr(torch.randn(n, r))
 
     ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
-    U, _, V = torch.svd_lowrank(ABt_prods, g=r+2, niter=2)
+    U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
     U, V = U[:,:r], V[:,:r]
 
     U, V = U.to(A[0].device), V.to(A[0].device)
@@ -107,7 +107,7 @@ def diagonal_lora_pca(A, B, r, niter=100, display=True):
     # U, V = U.to(A[0].device), V.to(A[0].device)
 
     ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
-    U, _, V = torch.svd_lowrank(ABt_prods, g=r+2, niter=2)
+    U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
     U, V = U[:,:r], V[:,:r]
     U, V = U.to(A[0].device), V.to(A[0].device)
 
