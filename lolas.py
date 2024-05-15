@@ -417,7 +417,8 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 
 # lora_module_list should be exact same list as used to create the lola_dict
 # [!] what if model is lora peft model, the uncompressed one?
-def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, type="diagonal"):
+# if project=True it assumes that the model is the lora model, and will project the lora to the compressed version
+def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, type="diagonal", project=False):
     final_state_dict = {}
     return_only_lora_index = None
     for i, peft_model_id in enumerate(lora_module_list): # across models, i is the model number
@@ -425,7 +426,8 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             return_only_lora_index = i 
 
     org_state_dict = get_peft_model_state_dict(model) # model.state_dict()
-    if return_only_lora_index is None:
+    if return_only_lora_index is None or project:
+        return_only_lora_index = None
         print("[!] Obs, we'll project LoRA to compress, assume LoRA model passed")
 
     # lolas_dict is from the one involved in compression, not targets
