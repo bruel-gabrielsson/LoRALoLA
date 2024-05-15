@@ -452,9 +452,6 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 # orthogonal
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
-                # debug
-                #A_m = A
-                #B_m = B
 
             elif type == "diagonal":
                 b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
@@ -464,14 +461,12 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 A_m = V.t() # The V.t() part
                 B_m = U @ torch.diag(sigma)
 
-                raise NotImplementedError("Not implemented")
             elif type == "SVD": # could just do svd with the correct rank
                 r = len(sigmas[0])
                 assert(U[0].shape[1] == r)
                 _U, _S, _V = torch.svd_lowrank(B.to(torch.device("cuda")) @ A.to(torch.device("cuda")), q=r+2, niter=2)
                 A_m = _V[:,:r].t()
                 B_m = _U[:,:r] @ torch.diag(_S[:r])
-                #raise NotImplementedError("Not implemented")
             else:
                 raise ValueError("Invalid type")
             
