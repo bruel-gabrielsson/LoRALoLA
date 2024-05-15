@@ -440,7 +440,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
             A, B = A.to(U.device), B.to(U.device)
 
-            A_m = V.t() # The V.t() part
+            
 
             # what if U, V aren't orthogonal? Then U.t() @ U != I, V.t() @ V != I. Do I need to do a linear solve?
             # BA = U @ sigma @ V.t()
@@ -448,6 +448,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             # X = pinv(U) *(BA) *pinv(V).t() ### K
             # # X = pinv(U) *(BA) *pinv(V.t()) ### K
             if type == "full":
+                A_m = V.t() # The V.t() part
                 # orthogonal
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
@@ -456,7 +457,21 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 #B_m = B
 
             elif type == "diagonal":
+                b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
+                M = (U.t() @ U) * (V.t() @ V)
+                sigma = torch.linalg.solve(M, b)
+                
+                A_m = V.t() # The V.t() part
+                B_m = U @ torch.diag(sigma)
+
                 raise NotImplementedError("Not implemented")
+            elif type == "SVD": # could just do svd with the correct rank
+                r = len(sigmas[0])
+                assert(U[0].shape[1] == r)
+                _U, _S, _V = torch.svd_lowrank(B.to(torch.device("cuda")) @ A.to(torch.device("cuda")), q=r+2, niter=2)
+                A_m = _V[:,:r].t()
+                B_m = _U[:,:r] @ torch.diag(_S[:r])
+                #raise NotImplementedError("Not implemented")
             else:
                 raise ValueError("Invalid type")
             
@@ -490,10 +505,13 @@ def get_reconstruction_error(lolas_dict, type="full"):
     j = -1
     for (A_key, B_key), values in lolas_dict.items():
         j += 1
-        U, sigmas, V, As, Bs, _, _ = values
-        U, V = U.to(device), V.to(device)
+        Us, sigmas, Vs, As, Bs, _, _ = values
+        
         for i in range(len(sigmas)):
-            
+            if type=="full" or type=="diagonal":
+                U, V = Us.to(device), Vs.to(device)
+            elif type=="SVD":
+                U, V = Us[i].to(device), Vs[i].to(device)
             reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
             recon_matrix[i,j] = reconstruction_error.item()
             #print(reconstruction_error)
