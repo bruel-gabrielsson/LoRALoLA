@@ -184,14 +184,14 @@ def diagonal_lora_pca(A, B, r, niter=100, display=True):
     return U, V, Sigmas
 
 # this expects lora to be W + BA
-def diagonal_lora_pca_wrapper(As,Bs,r,niter=10, display=True):
+def diagonal_lora_pca_wrapper(As,Bs,r,niter=100, display=True):
     newAs = [A.t().to(torch.device("cuda")) for A in As]
     Bs = [B.to(torch.device("cuda")) for B in Bs]
     U, V, sigmas = diagonal_lora_pca(Bs, newAs, r, niter, display) # expecting lora to be W + AB^T, A=arg1, B=arg2
     return U, V, sigmas
 
 # this expects lora to be W + BA
-def diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=True, sparse_reg=0):
+def diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=100, display=True, sparse_reg=0):
     print("[!] SPARSE diagonal_lorapca_getCombination_sparse", sparse_reg, As[0].shape, Bs[0].shape, r)
     newAs = [A.t() for A in As]
     newAs = [A.t().to(torch.device("cuda")) for A in As]
