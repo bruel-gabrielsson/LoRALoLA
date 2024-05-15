@@ -4,7 +4,7 @@ import numpy as np
 from peft.utils.save_and_load import set_peft_model_state_dict, get_peft_model_state_dict
 
 # This expect lora to be W + AB^T
-def full_lora_pca(A, B, r, niter=10, display=True):
+def full_lora_pca(A, B, r, niter=10, display=True:
     m = A[0].shape[0]
     n = B[0].shape[0]
     if display:
@@ -16,8 +16,13 @@ def full_lora_pca(A, B, r, niter=10, display=True):
     dataset_size = len(A)
 
     # Random orthogonal initializers
-    U, _ = torch.linalg.qr(torch.randn(m, r))
-    V, _ = torch.linalg.qr(torch.randn(n, r))
+    # U, _ = torch.linalg.qr(torch.randn(m, r))
+    # V, _ = torch.linalg.qr(torch.randn(n, r))
+
+    ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
+    U, _, V = torch.svd_lowrank(ABt_prods, g=r+2, niter=2)
+    U, V = U[:,:r], V[:,:r]
+
     U, V = U.to(A[0].device), V.to(A[0].device)
 
     objectives = np.zeros(niter)
@@ -85,7 +90,7 @@ def full_lora_pca_wrapper(As,Bs,r,niter=10, display=True):
     newAs = [A.t().to(torch.device("cuda")) for A in As]
     Bs = [B.to(torch.device("cuda")) for B in Bs]
     U, V, sigmas = full_lora_pca(Bs, newAs, r, niter, display) # expecting lora to be W + AB^T, A=arg1, B=arg2
-    sum_sigmas = torch.sum(torch.stack(sigmas), dim=0) / len(sigmas)
+    # sum_sigmas = torch.sum(torch.stack(sigmas), dim=0) / len(sigmas)
     return U, V, sigmas
 
 # This expect lora to be W + AB^T
@@ -97,9 +102,15 @@ def diagonal_lora_pca(A, B, r, niter=100, display=True):
     objectives = torch.zeros(niter)
 
     # Randomly initialize
-    U = torch.randn(m, r)
-    V = torch.randn(n, r)
+    # U = torch.randn(m, r)
+    # V = torch.randn(n, r)
+    # U, V = U.to(A[0].device), V.to(A[0].device)
+
+    ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
+    U, _, V = torch.svd_lowrank(ABt_prods, g=r+2, niter=2)
+    U, V = U[:,:r], V[:,:r]
     U, V = U.to(A[0].device), V.to(A[0].device)
+
     Sigmas = [torch.diag(torch.rand(r)).to(A[0].device) for _ in range(dataset_size)]
 
     objective = 0.0
