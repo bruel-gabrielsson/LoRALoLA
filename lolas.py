@@ -412,19 +412,19 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
         elif type == "full":
             U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
 
-            import copy
-            for i in range(1):
-                device = torch.device("cuda")
+            # import copy
+            # for i in range(1):
+            #     device = torch.device("cuda")
                 
-                _As, _Bs = As, Bs
-                U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=10, display=False) 
-                reconstruction_errors = []
-                for j in range(len(_As)):
-                    r_error = torch.pow( torch.norm(_Bs[j].to(device) @ _As[j].to(device) - U @ sigmas[j].to(device) @ V.t(), p='fro') / torch.norm(_Bs[j].to(device) @ _As[j].to(device), p='fro'), 2).item()
-                    print(r_error)
-                    reconstruction_errors.append( r_error )
-                print("reconstruction_error", np.array(reconstruction_errors).mean())
-            assert(False)
+            #     _As, _Bs = As, Bs
+            #     U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=10, display=False) 
+            #     reconstruction_errors = []
+            #     for j in range(len(_As)):
+            #         r_error = torch.pow( torch.norm(_Bs[j].to(device) @ _As[j].to(device) - U @ sigmas[j].to(device) @ V.t(), p='fro') / torch.norm(_Bs[j].to(device) @ _As[j].to(device), p='fro'), 2).item()
+            #         print(r_error)
+            #         reconstruction_errors.append( r_error )
+            #     print("reconstruction_error", np.array(reconstruction_errors).mean())
+            # assert(False)
         elif type == "SVD":
             Us, Vs, Sigmas = [], [], []
             for i in range(len(As)):
