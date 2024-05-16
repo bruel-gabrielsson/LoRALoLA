@@ -416,7 +416,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
             for i in range(10):
                 device = torch.device("cuda")
                 
-                _As, _Bs = copy.deepcopy(As), copy.deepcopy(Bs)
+                _As, _Bs = As, Bs
                 U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=10, display=False) 
                 reconstruction_errors = []
                 for j in range(1):
