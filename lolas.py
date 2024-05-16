@@ -16,12 +16,12 @@ def full_lora_pca(A, B, r, niter=10, display=True):
     dataset_size = len(A)
 
     # Random orthogonal initializers
-    # U, _ = torch.linalg.qr(torch.randn(m, r))
-    # V, _ = torch.linalg.qr(torch.randn(n, r))
+    U, _ = torch.linalg.qr(torch.randn(m, r))
+    V, _ = torch.linalg.qr(torch.randn(n, r))
 
-    ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
-    U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
-    U, V = U[:,:r], V[:,:r]
+    # ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
+    # U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
+    # U, V = U[:,:r], V[:,:r]
 
     U, V = U.to(A[0].device), V.to(A[0].device)
 
@@ -102,14 +102,14 @@ def diagonal_lora_pca(A, B, r, niter=100, display=True):
     objectives = torch.zeros(niter)
 
     # Randomly initialize
-    # U = torch.randn(m, r)
-    # V = torch.randn(n, r)
-    # U, V = U.to(A[0].device), V.to(A[0].device)
-
-    ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
-    U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
-    U, V = U[:,:r], V[:,:r]
+    U = torch.randn(m, r)
+    V = torch.randn(n, r)
     U, V = U.to(A[0].device), V.to(A[0].device)
+
+    # ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
+    # U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
+    # U, V = U[:,:r], V[:,:r]
+    # U, V = U.to(A[0].device), V.to(A[0].device)
 
     Sigmas = [torch.diag(torch.rand(r)).to(A[0].device) for _ in range(dataset_size)]
 
@@ -405,9 +405,9 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 
         #print(len(As),len(Bs))
         if type == "diagonal":
-            U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=100, display=False, sparse_reg=sparse_reg)    
+            U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
-            U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=100, display=False) 
+            U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
         elif type == "SVD":
             Us, Vs, Sigmas = [], [], []
             for i in range(len(As)):
