@@ -541,6 +541,7 @@ def get_reconstruction_error(lolas_dict, type="full"):
                 U, V = Us.to(device), Vs.to(device)
             elif type=="SVD":
                 U, V = Us[i].to(device), Vs[i].to(device)
+                print(U.shape, V.shape)
             recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
             renorm_A = As[i] * norm_A[i]
             renorm_B = Bs[i] * norm_B[i]
