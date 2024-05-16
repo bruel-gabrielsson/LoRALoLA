@@ -433,7 +433,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 # U [d_out, r] [r, r] [d_in, r]
                 Us.append(U[:,:r])
                 Vs.append(V[:,:r])
-                Sigmas.append(S[:r])
+                Sigmas.append(torch.diag(S[:r]))
             
             U, V, sigmas = Us, Vs, Sigmas
         else:
@@ -512,7 +512,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             elif type=="SVD":
                 this_U, this_V, sigma = U[return_only_lora_index], V[return_only_lora_index], sigmas[return_only_lora_index] 
                 A_m = this_V.t() # The V.t() part
-                B_m = this_U @ torch.diag(sigma) * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
+                B_m = this_U @ sigma * norm_A[return_only_lora_index] * norm_B[return_only_lora_index] # The (U @ sigma) part. De normalized
             else:
                 raise ValueError("Invalid type")
 
@@ -541,9 +541,7 @@ def get_reconstruction_error(lolas_dict, type="full"):
                 U, V = Us.to(device), Vs.to(device)
             elif type=="SVD":
                 U, V = Us[i].to(device), Vs[i].to(device) # torch.Size([4096, 16]) torch.Size([4096, 16])
-                print(norm_A[i], norm_B[i])
-                print(U.shape, V.shape)
-                print( sigmas[i].shape )
+                #print( sigmas[i].shape ) # torch.Size([16])
             recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
             renorm_A = As[i] * norm_A[i]
             renorm_B = Bs[i] * norm_B[i]
