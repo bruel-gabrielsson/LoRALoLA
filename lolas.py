@@ -413,13 +413,13 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
             U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
 
             import copy
-            for i in range(10):
+            for i in range(100):
                 device = torch.device("cuda")
                 
                 _As, _Bs = As, Bs
                 U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=10, display=False) 
                 reconstruction_errors = []
-                for j in range(1):
+                for j in range(len(_As)):
                     reconstruction_errors.append( torch.pow( torch.norm(_Bs[j].to(device) @ _As[j].to(device) - U @ sigmas[j].to(device) @ V.t(), p='fro') / torch.norm(_Bs[j].to(device) @ _As[j].to(device), p='fro'), 2).item() )
                 print("reconstruction_error", np.array(reconstruction_errors).mean())
             assert(False)
