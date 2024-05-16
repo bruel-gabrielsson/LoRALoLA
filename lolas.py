@@ -407,14 +407,14 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
         if type == "diagonal":
             U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
-            U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
+            #U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
 
-            # for i in range(10):
-            #     device = torch.device("cuda")
-            #     U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
-            #     reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
-            #     print("reconstruction_error", reconstruction_error)
-            # assert(False)
+            for i in range(10):
+                device = torch.device("cuda")
+                U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=100, display=False) 
+                reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
+                print("reconstruction_error", reconstruction_error)
+            assert(False)
         elif type == "SVD":
             Us, Vs, Sigmas = [], [], []
             for i in range(len(As)):
@@ -473,9 +473,9 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
 
-                print(U.t() @ U)
-                print(V.t() @ V)
-                assert(False)
+                # print(U.t() @ U)
+                # print(V.t() @ V)
+                # assert(False)
 
             elif type == "diagonal":
                 b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
