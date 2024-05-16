@@ -55,9 +55,9 @@ def full_lora_pca(A, B, r, niter=10, display=True):
         # (32x34 and 4096x16)
         # full svd [ (d_out, d_in) (d_in, d_in) (d_in, d_in).T ] reduced form d_in < d_out
         # lowrank [ (d_out, q) (q) (q d_in).T ]
-        #U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
         # (U, S, Vh)
-        U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        #U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print("U.shape, oldU.shape", U.shape, oldU.shape)
@@ -70,8 +70,8 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             stack.append(prod)
         stack = torch.cat(stack, dim=0)
         oldV = V
-        #V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
-        V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        #V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print('\tV difference: {}'.format(torch.norm(V - oldV, p='fro')))
@@ -411,7 +411,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 
             for i in range(10):
                 device = torch.device("cuda")
-                U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=100, display=False) 
+                U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=1000, display=False) 
                 reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
                 print("reconstruction_error", reconstruction_error)
             assert(False)
