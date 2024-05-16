@@ -417,9 +417,11 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 device = torch.device("cuda")
                 
                 _As, _Bs = copy.deepcopy(As), copy.deepcopy(Bs)
-                U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=1000, display=False) 
-                reconstruction_error = torch.pow( torch.norm(_Bs[i].to(device) @ _As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(_Bs[i].to(device) @ _As[i].to(device), p='fro'), 2)
-                print("reconstruction_error", reconstruction_error)
+                U, V, sigmas = full_lora_pca_wrapper(_As,_Bs,r,niter=10, display=False) 
+                reconstruction_errors = []
+                for j in range(1):
+                    reconstruction_errors.append( torch.pow( torch.norm(_Bs[i].to(device) @ _As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(_Bs[i].to(device) @ _As[i].to(device), p='fro'), 2) )
+                print("reconstruction_error", np.array(reconstruction_errors).mean())
             assert(False)
         elif type == "SVD":
             Us, Vs, Sigmas = [], [], []
