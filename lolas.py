@@ -55,9 +55,9 @@ def full_lora_pca(A, B, r, niter=10, display=True):
         # (32x34 and 4096x16)
         # full svd [ (d_out, d_in) (d_in, d_in) (d_in, d_in).T ] reduced form d_in < d_out
         # lowrank [ (d_out, q) (q) (q d_in).T ]
-        U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        #U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
         # (U, S, Vh)
-        #U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print("U.shape, oldU.shape", U.shape, oldU.shape)
@@ -70,8 +70,8 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             stack.append(prod)
         stack = torch.cat(stack, dim=0)
         oldV = V
-        V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
-        #V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        #V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print('\tV difference: {}'.format(torch.norm(V - oldV, p='fro')))
