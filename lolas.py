@@ -466,6 +466,10 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
                 sigma = U.t() @ B @ A @ V
                 B_m = U @ sigma
 
+                print(U @ U.t())
+                print(V @ V.t())
+                assert(False)
+
             elif type == "diagonal":
                 b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
                 M = (U.t() @ U) * (V.t() @ V)
