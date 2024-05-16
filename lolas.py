@@ -19,8 +19,8 @@ def full_lora_pca(A, B, r, niter=10, display=True):
     U, _ = torch.linalg.qr(torch.randn(m, r))
     V, _ = torch.linalg.qr(torch.randn(n, r))
 
-    print(torch.randn(m, r))
-    assert(False)
+    # print(torch.randn(m, r))
+    # assert(False)
 
     # ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
     # U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
