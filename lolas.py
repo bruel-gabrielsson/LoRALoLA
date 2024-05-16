@@ -55,9 +55,9 @@ def full_lora_pca(A, B, r, niter=10, display=True):
         # (32x34 and 4096x16)
         # full svd [ (d_out, d_in) (d_in, d_in) (d_in, d_in).T ] reduced form d_in < d_out
         # lowrank [ (d_out, q) (q) (q d_in).T ]
-        U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        #U = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
         # (U, S, Vh)
-        #U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        U = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print("U.shape, oldU.shape", U.shape, oldU.shape)
@@ -70,8 +70,8 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             stack.append(prod)
         stack = torch.cat(stack, dim=0)
         oldV = V
-        V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
-        #V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
+        #V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
             print('\tV difference: {}'.format(torch.norm(V - oldV, p='fro')))
@@ -407,13 +407,13 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
         if type == "diagonal":
             U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
-            U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
+            #U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
 
-            # for i in range(10):
-            #     U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
-            #     reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
-            #     print("reconstruction_error", reconstruction_error)
-            # assert(False)
+            for i in range(10):
+                U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
+                reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
+                print("reconstruction_error", reconstruction_error)
+            assert(False)
         elif type == "SVD":
             Us, Vs, Sigmas = [], [], []
             for i in range(len(As)):
@@ -523,14 +523,18 @@ def get_reconstruction_error(lolas_dict, type="full"):
     j = -1
     for (A_key, B_key), values in lolas_dict.items():
         j += 1
-        Us, sigmas, Vs, As, Bs, _, _ = values
+        Us, sigmas, Vs, As, Bs, norm_A, norm_B = values # These A and B are potentaily normalized to 1
         
         for i in range(len(sigmas)):
             if type=="full" or type=="diagonal":
                 U, V = Us.to(device), Vs.to(device)
             elif type=="SVD":
                 U, V = Us[i].to(device), Vs[i].to(device)
-            reconstruction_error = torch.pow( torch.norm(Bs[i].to(device) @ As[i].to(device) - U @ sigmas[i].to(device) @ V.t(), p='fro') / torch.norm(Bs[i].to(device) @ As[i].to(device), p='fro'), 2)
+            recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
+            renorm_A = As[i] * norm_A[i]
+            renorm_B = Bs[i] * norm_B[i]
+            # Since normalized, this should not matter, both the As Bs and the U,V,sigma are normalized. Cancel each other out
+            reconstruction_error = torch.pow( torch.norm(renorm_B.to(device) @ renorm_A.to(device) - recon, p='fro') / torch.norm(renorm_B.to(device) @ renorm_A.to(device), p='fro'), 2)
             recon_matrix[i,j] = reconstruction_error.item()
             #print(reconstruction_error)
         #reconstruction_errors.append(reconstruction_error.item())
