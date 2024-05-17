@@ -99,102 +99,110 @@ def full_lora_pca_wrapper(As,Bs,r,niter=10, display=True):
     # sum_sigmas = torch.sum(torch.stack(sigmas), dim=0) / len(sigmas)
     return U, V, sigmas
 
-# This expect lora to be W + AB^T
-def diagonal_lora_pca(A, B, r, niter=100, display=True):
-    m = A[0].shape[0]
-    n = B[0].shape[0]
-    dataset_size = len(A)
+# # This expect lora to be W + AB^T
+# def diagonal_lora_pca(A, B, r, tol=0.001, display=True):
+#     m = A[0].shape[0]
+#     n = B[0].shape[0]
+#     dataset_size = len(A)
 
-    objectives = torch.zeros(niter)
+#     objectives = torch.zeros(niter)
 
-    # Randomly initialize
-    U = torch.randn(m, r)
-    V = torch.randn(n, r)
-    U, V = U.to(A[0].device), V.to(A[0].device)
+#     # Randomly initialize
+#     U = torch.randn(m, r)
+#     V = torch.randn(n, r)
+#     U, V = U.to(A[0].device), V.to(A[0].device)
 
-    # ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
-    # U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
-    # U, V = U[:,:r], V[:,:r]
-    # U, V = U.to(A[0].device), V.to(A[0].device)
+#     # ABt_prods = torch.mean( torch.stack([A[i] @ B[i].t() for i in range(dataset_size)]), dim=0 )
+#     # U, _, V = torch.svd_lowrank(ABt_prods, q=r+2, niter=2)
+#     # U, V = U[:,:r], V[:,:r]
+#     # U, V = U.to(A[0].device), V.to(A[0].device)
 
-    Sigmas = [torch.diag(torch.rand(r)).to(A[0].device) for _ in range(dataset_size)]
+#     Sigmas = [torch.diag(torch.rand(r)).to(A[0].device) for _ in range(dataset_size)]
 
-    objective = 0.0
+#     objective = 0.0
 
-    for iter in range(niter):
-        if display:
-            print(f'Iteration {iter + 1}:')
+#     for iter in range(niter):
+#         if display:
+#             print(f'Iteration {iter + 1}:')
 
-        if display:
-            old_objective = objective
-            objective = 0.0
-            for i in range(dataset_size):
-                objective += torch.norm(A[i] @ B[i].t() - U @ Sigmas[i] @ V.t())**2
-            print(f'\tObjective: {objective} (diff = {old_objective - objective})')
+#         if display:
+#             old_objective = objective
+#             objective = 0.0
+#             for i in range(dataset_size):
+#                 objective += torch.norm(A[i] @ B[i].t() - U @ Sigmas[i] @ V.t())**2
+#             print(f'\tObjective: {objective} (diff = {old_objective - objective})')
 
-            objectives[iter] = objective
+#             objectives[iter] = objective
 
-        # Sigma optimization
-        mtx = (U.t() @ U) * (V.t() @ V)
-        R = torch.linalg.cholesky(mtx)
-        diff = 0.0
-        for i in range(dataset_size):
-            oldSigma = Sigmas[i]
-            Sigmas[i] = torch.diag(torch.linalg.solve(R.t(), torch.linalg.solve(R, torch.sum((U.t() @ A[i]) * (V.t() @ B[i]), dim=1))))
-            diff += torch.norm(oldSigma - Sigmas[i])**2
-        diff = torch.sqrt(diff)
-        if display:
-            print(f'\tSigma difference: {diff}')
+#         # Sigma optimization
+#         mtx = (U.t() @ U) * (V.t() @ V)
+#         R = torch.linalg.cholesky(mtx)
+#         diff = 0.0
+#         for i in range(dataset_size):
+#             oldSigma = Sigmas[i]
+#             Sigmas[i] = torch.diag(torch.linalg.solve(R.t(), torch.linalg.solve(R, torch.sum((U.t() @ A[i]) * (V.t() @ B[i]), dim=1))))
+#             diff += torch.norm(oldSigma - Sigmas[i])**2
+#         diff = torch.sqrt(diff)
+#         if display:
+#             print(f'\tSigma difference: {diff}')
 
-        # U optimization
-        oldU = U.clone()  # Copy of U before updating
-        lhs = torch.zeros(r, r).to(A[0].device)
-        rhs = torch.zeros(m, r).to(A[0].device)
-        for i in range(dataset_size):
-            Vs = V @ Sigmas[i].t()
-            lhs += Vs.t() @ Vs
-            rhs += A[i] @ (B[i].t() @ (V @ Sigmas[i].t()))
-        U = torch.linalg.solve(lhs.t(), rhs.t()).t()
+#         # U optimization
+#         oldU = U.clone()  # Copy of U before updating
+#         lhs = torch.zeros(r, r).to(A[0].device)
+#         rhs = torch.zeros(m, r).to(A[0].device)
+#         for i in range(dataset_size):
+#             Vs = V @ Sigmas[i].t()
+#             lhs += Vs.t() @ Vs
+#             rhs += A[i] @ (B[i].t() @ (V @ Sigmas[i].t()))
+#         U = torch.linalg.solve(lhs.t(), rhs.t()).t()
 
-        if display:
-            print(f'\tU difference: {torch.norm(U - oldU)}')
+#         if display:
+#             print(f'\tU difference: {torch.norm(U - oldU)}')
 
-        # V optimization
-        oldV = V.clone()  # Copy of V before updating
-        lhs = torch.zeros(r, r).to(A[0].device)
-        rhs = torch.zeros(n, r).to(A[0].device)
-        for i in range(dataset_size):
-            Us = U @ Sigmas[i]
-            lhs += Us.t() @ Us
-            rhs += B[i] @ (A[i].t() @ (U @ Sigmas[i]))
-        V = torch.linalg.solve(lhs.t(), rhs.t()).t()
+#         # V optimization
+#         oldV = V.clone()  # Copy of V before updating
+#         lhs = torch.zeros(r, r).to(A[0].device)
+#         rhs = torch.zeros(n, r).to(A[0].device)
+#         for i in range(dataset_size):
+#             Us = U @ Sigmas[i]
+#             lhs += Us.t() @ Us
+#             rhs += B[i] @ (A[i].t() @ (U @ Sigmas[i]))
+#         V = torch.linalg.solve(lhs.t(), rhs.t()).t()
 
-        if display:
-            print(f'\tV difference: {torch.norm(V - oldV)}')
+#         if display:
+#             print(f'\tV difference: {torch.norm(V - oldV)}')
 
-        # Rescale
-        sigma_norm = sum([torch.norm(Sigma)**2 for Sigma in Sigmas])**0.5
-        for i in range(dataset_size):
-            Sigmas[i] /= sigma_norm
-        U *= sigma_norm
+#         # Rescale
+#         sigma_norm = sum([torch.norm(Sigma)**2 for Sigma in Sigmas])**0.5
+#         for i in range(dataset_size):
+#             Sigmas[i] /= sigma_norm
+#         U *= sigma_norm
 
-        c = (torch.norm(V) / torch.norm(U))**0.5
-        V /= c
-        U *= c
+#         c = (torch.norm(V) / torch.norm(U))**0.5
+#         V /= c
+#         U *= c
 
-    # if display:
-    #     plt.plot(objectives.numpy())
-    #     plt.title('Objective values, diagonal')
-    #     plt.show()
+#         # Check convergence
+#         Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
+#         Vchange = torch.norm(V - oldV @ (oldV.t() @ V), p='fro') / torch.norm(V, p='fro')
 
-    return U, V, Sigmas
+#         if max(Uchange, Vchange) < tol:
+#             print("Converged")
+#             return U, V
 
-# this expects lora to be W + BA
-def diagonal_lora_pca_wrapper(As,Bs,r,niter=100, display=True):
-    newAs = [A.t().to(torch.device("cuda")) for A in As]
-    Bs = [B.to(torch.device("cuda")) for B in Bs]
-    U, V, sigmas = diagonal_lora_pca(Bs, newAs, r, niter, display) # expecting lora to be W + AB^T, A=arg1, B=arg2
-    return U, V, sigmas
+#     # if display:
+#     #     plt.plot(objectives.numpy())
+#     #     plt.title('Objective values, diagonal')
+#     #     plt.show()
+
+#     return U, V, Sigmas
+
+# # this expects lora to be W + BA
+# def diagonal_lora_pca_wrapper(As,Bs,r, display=True):
+#     newAs = [A.t().to(torch.device("cuda")) for A in As]
+#     Bs = [B.to(torch.device("cuda")) for B in Bs]
+#     U, V, sigmas = diagonal_lora_pca(Bs, newAs, r, display) # expecting lora to be W + AB^T, A=arg1, B=arg2
+#     return U, V, sigmas
 
 # this expects lora to be W + BA
 def diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=100, display=True, sparse_reg=0):
@@ -301,6 +309,14 @@ def diagonal_lora_pca_sparse(A, B, r, niter=100, display=True, sparse_reg = 0):
         c = (torch.norm(V) / torch.norm(U))**0.5
         V /= c
         U *= c
+
+        # Check convergence
+        Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
+        Vchange = torch.norm(V - oldV @ (oldV.t() @ V), p='fro') / torch.norm(V, p='fro')
+
+        if max(Uchange, Vchange) < tol:
+            print("Converged")
+            return U, V, Sigmas
 
     # if display:
     #     plt.plot(objectives.numpy())
@@ -411,7 +427,7 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 
         #print(len(As),len(Bs))
         if type == "diagonal":
-            U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
+            U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
             #U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
             U, V = full_lora_eigen_wrapper(As,Bs,r,display=False)
