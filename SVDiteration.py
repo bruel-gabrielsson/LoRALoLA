@@ -10,7 +10,7 @@ def full_lora_svd_wrapper(As,Bs,r, display=True):
 
     _As, _Bs = Bs, newAs # AB^T
 
-    weigts = compute_weights(_As, _Bs)
+    weights = compute_weights(_As, _Bs)
     U, V = loraSVDIteration(_As, _Bs, weights, r, printstatus=display) # expecting lora to be W + AB^T, A=arg1, B=arg2
     # sum_sigmas = torch.sum(torch.stack(sigmas), dim=0) / len(sigmas)
     return U, V
