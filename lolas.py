@@ -567,7 +567,7 @@ def get_reconstruction_error(lolas_dict, type="full"):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # we want to have a list of list (matrix), first list is across models, other layers
-    recon_matrix = np.zeros((len(list(lolas_dict.values())[0][1]), len(lolas_dict)))
+    recon_matrix = np.zeros((len(list(lolas_dict.values())[0][0]), len(lolas_dict)))
     j = -1
     for (A_key, B_key), values in lolas_dict.items():
         j += 1

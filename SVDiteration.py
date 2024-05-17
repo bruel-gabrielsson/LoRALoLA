@@ -15,6 +15,7 @@ def full_lora_svd_wrapper(As,Bs,r, display=True):
     # sum_sigmas = torch.sum(torch.stack(sigmas), dim=0) / len(sigmas)
     return U, V
 
+# normalizes by frobenius squared
 def compute_weights(A, B):
     dataset_size = len(A)
     weights = torch.zeros(dataset_size, device=A[0].device)
@@ -31,8 +32,8 @@ def fullSigmaObjective(A, B, w, U, V):
 def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    U = torch.qr(torch.randn(A[0].size(0), r, device=device)).Q # out_dim x r
-    V = torch.qr(torch.randn(B[0].size(0), r, device=device)).Q # in_dim x r
+    U, _ = torch.linalg.qr(torch.randn(A[0].size(0), r, device=device)) # out_dim x r
+    V, _ = torch.linalg.qr(torch.randn(B[0].size(0), r, device=device)) # in_dim x r
 
     n = len(A)
 
@@ -47,7 +48,8 @@ def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
             stack[j * V.size(1):(j + 1) * V.size(1), :] = prod
         oldU = U.clone()
         # print(stack.shape) # torch.Size([r * num_loras, out_dim])
-        U = torch.svd_lowrank(stack, q=r+2, niter=2)[2][:, :r]
+        #U = torch.svd_lowrank(stack, q=r+2, niter=100)[2][:, :r]
+        U = torch.svd(stack)[2][:, :r]
         # should be torch.Size([r * num_loras, r])
 
         # V step
@@ -56,7 +58,8 @@ def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
             prod = torch.sqrt(weights[j]) * (U.t() @ A[j]) @ B[j].t()
             stack[j * U.size(1):(j + 1) * U.size(1), :] = prod
         oldV = V.clone()
-        V = torch.svd_lowrank(stack, q=r+2, niter=2)[2][:, :r]
+        #V = torch.svd_lowrank(stack, q=r+2, niter=100)[2][:, :r]
+        V = torch.svd(stack)[2][:, :r]
 
         # Check convergence
         Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
@@ -70,13 +73,12 @@ def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
             return U, V
     return U, V
 
-# Example usage
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     A = [torch.randn(100, 50).to(device) for _ in range(10)]
     B = [torch.randn(80, 50).to(device) for _ in range(10)]
     weights = compute_weights(A, B).to(device) # torch.ones(10).to(device)
-    r = 5
+    r = 16
     tol = 0.001
 
     U, V = loraSVDIteration(A, B, weights, r, tol)
