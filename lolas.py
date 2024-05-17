@@ -311,12 +311,12 @@ def diagonal_lora_pca_sparse(A, B, r, niter=100, display=True, sparse_reg = 0, t
         U *= c
 
         # Check convergence
-        Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
-        Vchange = torch.norm(V - oldV @ (oldV.t() @ V), p='fro') / torch.norm(V, p='fro')
+        # Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
+        # Vchange = torch.norm(V - oldV @ (oldV.t() @ V), p='fro') / torch.norm(V, p='fro')
 
-        if max(Uchange, Vchange) < tol:
-            print("Converged")
-            return U, V, Sigmas
+        # if max(Uchange, Vchange) < tol:
+        #     print("Converged")
+        #     return U, V, Sigmas
 
     # if display:
     #     plt.plot(objectives.numpy())
@@ -356,6 +356,9 @@ def set_leaf_module(model, key_to_change, new_weight):
 def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, transform_lora="none"):
 
     print("[!] lola_loras", "rank", r, "sparse_reg", sparse_reg)
+
+    if type=="full":
+        assert(transform_lora=="none", "transform_lora should be none for full")
 
     '''
     'base_model.model.decoder.block.23.layer.1.EncDecAttention.q.lora_A.weight', 'base_model.model.decoder.block.23.layer.1.EncDecAttention.q.lora_B.weight', 
@@ -466,9 +469,10 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
 def project_from_AB_UV(A, B, U, V, type="diagonal"):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     A, B = A.to(device), B.to(device)
-    U, V = U.to(device), V.to(device)
 
     if type == "diagonal":
+        U, V = U.to(device), V.to(device)
+
         b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
         M = (U.t() @ U) * (V.t() @ V)
         sigma = torch.linalg.solve(M, b)
@@ -477,11 +481,15 @@ def project_from_AB_UV(A, B, U, V, type="diagonal"):
         sigma = torch.diag(sigma).to(A.device)
         recon = U @ torch.diag(sigma) @ V.t()
     elif type == "full":
+        U, V = U.to(device), V.to(device)
+
         sigma = U.t() @ B @ A @ V
         recon = U @ sigma @ V.t()
-    elif type == "SVD":
-        r = len(sigmas)
-        assert(U.shape[1] == r)
+    elif type == "SVD": # U, V are lists
+        U, V = U[0].to(device), V[0].to(device)
+
+        r = U.shape[1]
+        assert(U.shape[1] == V.shape[1] == r)
         _U, _S, _V = torch.svd_lowrank(B @ A, q=r+2, niter=2)
         sigma = torch.diag(_S[:r])
         U, V = _U[:,:r], _V[:,:r]
