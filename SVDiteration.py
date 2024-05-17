@@ -48,8 +48,8 @@ def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
             stack[j * V.size(1):(j + 1) * V.size(1), :] = prod
         oldU = U.clone()
         # print(stack.shape) # torch.Size([r * num_loras, out_dim])
-        #U = torch.svd_lowrank(stack, q=r+2, niter=100)[2][:, :r]
-        U = torch.svd(stack)[2][:, :r]
+        U = torch.svd_lowrank(stack, q=r+2, niter=1000)[2][:, :r]
+        #U = torch.svd(stack)[2][:, :r]
         # should be torch.Size([r * num_loras, r])
 
         # V step
@@ -58,8 +58,8 @@ def loraSVDIteration(A, B, weights, r, tol=0.001, printstatus=True):
             prod = torch.sqrt(weights[j]) * (U.t() @ A[j]) @ B[j].t()
             stack[j * U.size(1):(j + 1) * U.size(1), :] = prod
         oldV = V.clone()
-        #V = torch.svd_lowrank(stack, q=r+2, niter=100)[2][:, :r]
-        V = torch.svd(stack)[2][:, :r]
+        V = torch.svd_lowrank(stack, q=r+2, niter=1000)[2][:, :r]
+        #V = torch.svd(stack)[2][:, :r]
 
         # Check convergence
         Uchange = torch.norm(U - oldU @ (oldU.t() @ U), p='fro') / torch.norm(U, p='fro')
