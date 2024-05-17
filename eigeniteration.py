@@ -1,6 +1,6 @@
 import torch
 
-from SVDiteration import compute_weights, fullSigmaObjective
+from .SVDiteration import compute_weights, fullSigmaObjective
 
 # this expects lora to be W + BA
 def full_lora_eigen_wrapper(As,Bs,r, display=True):
