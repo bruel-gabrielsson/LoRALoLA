@@ -3,6 +3,8 @@ import numpy as np
 
 from peft.utils.save_and_load import set_peft_model_state_dict, get_peft_model_state_dict
 
+from SVDiteration import full_lora_svd_wrapper
+
 # This expect lora to be W + AB^T
 def full_lora_pca(A, B, r, niter=10, display=True):
     m = A[0].shape[0]
@@ -410,8 +412,9 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
         if type == "diagonal":
             U, V, sigmas = diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=10, display=False, sparse_reg=sparse_reg)    
         elif type == "full":
-            U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
-
+            #U, V, sigmas = full_lora_pca_wrapper(As,Bs,r,niter=10, display=False) 
+            U, V = full_lora_svd_wrapper(As,Bs,r,display=False)
+            sigmas = None
             # import copy
             # for i in range(1):
             #     device = torch.device("cuda")
@@ -442,6 +445,35 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
         lola_dict[(A_key, B_key)] = (U, sigmas, V, As, Bs, norms_A, norms_B) # including As and Bs too for reconstruction error, etc
     
     return lola_dict 
+
+def project_from_AB_UV(A, B, U, V, type="diagonal"):
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    A, B = A.to(device), B.to(device)
+    U, V = U.to(device), V.to(device)
+
+    if type == "diagonal":
+        b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
+        M = (U.t() @ U) * (V.t() @ V)
+        sigma = torch.linalg.solve(M, b)
+        #A_m = V.t() # The V.t() part
+        #B_m = U @ torch.diag(sigma)
+        sigma = torch.diag(sigma).to(A.device)
+        recon = U @ torch.diag(sigma) @ V.t()
+    elif type == "full":
+        sigma = U.t() @ B @ A @ V
+        recon = U @ sigma @ V.t()
+    elif type == "SVD":
+        r = len(sigmas)
+        assert(U.shape[1] == r)
+        _U, _S, _V = torch.svd_lowrank(B @ A, q=r+2, niter=2)
+        sigma = torch.diag(_S[:r])
+        U, V = _U[:,:r], _V[:,:r]
+        recon = U @ sigma @ V.t()
+    else:
+        raise ValueError("Invalid type")
+    
+
+    return sigma, U, V, recon
 
 # lora_module_list should be exact same list as used to create the lola_dict
 # [!] what if model is lora peft model, the uncompressed one?
@@ -477,32 +509,37 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             # sigma = U.t() @ B @ A @ V
             # X = pinv(U) *(BA) *pinv(V).t() ### K
             # # X = pinv(U) *(BA) *pinv(V.t()) ### K
-            if type == "full":
-                A_m = V.t() # The V.t() part
-                # orthogonal
-                sigma = U.t() @ B @ A @ V
-                B_m = U @ sigma
 
-                # print(U.t() @ U)
-                # print(V.t() @ V)
-                # assert(False)
+            sigma, U, V, recon = project_from_AB_UV(A, B, U, V, type=type)
 
-            elif type == "diagonal":
-                b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
-                M = (U.t() @ U) * (V.t() @ V)
-                sigma = torch.linalg.solve(M, b)
+            A_m = V.t() # The V.t() part
+            B_m = U @ sigma
+            # if type == "full":
+            #     A_m = V.t() # The V.t() part
+            #     # orthogonal
+            #     sigma = U.t() @ B @ A @ V
+            #     B_m = U @ sigma
+
+            #     # print(U.t() @ U)
+            #     # print(V.t() @ V)
+            #     # assert(False)
+
+            # elif type == "diagonal":
+            #     b = U.t() @ A * V.t() @ torch.ones((V.t().shape[0], 1), device=V.device)
+            #     M = (U.t() @ U) * (V.t() @ V)
+            #     sigma = torch.linalg.solve(M, b)
                 
-                A_m = V.t() # The V.t() part
-                B_m = U @ torch.diag(sigma)
+            #     A_m = V.t() # The V.t() part
+            #     B_m = U @ torch.diag(sigma)
 
-            elif type == "SVD": # could just do svd with the correct rank
-                r = len(sigmas[0])
-                assert(U[0].shape[1] == r)
-                _U, _S, _V = torch.svd_lowrank(B.to(torch.device("cuda")) @ A.to(torch.device("cuda")), q=r+2, niter=2)
-                A_m = _V[:,:r].t()
-                B_m = _U[:,:r] @ torch.diag(_S[:r])
-            else:
-                raise ValueError("Invalid type")
+            # elif type == "SVD": # could just do svd with the correct rank
+            #     r = len(sigmas[0])
+            #     assert(U[0].shape[1] == r)
+            #     _U, _S, _V = torch.svd_lowrank(B.to(torch.device("cuda")) @ A.to(torch.device("cuda")), q=r+2, niter=2)
+            #     A_m = _V[:,:r].t()
+            #     B_m = _U[:,:r] @ torch.diag(_S[:r])
+            # else:
+            #     raise ValueError("Invalid type")
             
         else:
 
@@ -537,12 +574,20 @@ def get_reconstruction_error(lolas_dict, type="full"):
         Us, sigmas, Vs, As, Bs, norm_A, norm_B = values # These A and B are potentaily normalized to 1
         
         for i in range(len(sigmas)):
+
+
             if type=="full" or type=="diagonal":
                 U, V = Us.to(device), Vs.to(device)
             elif type=="SVD":
                 U, V = Us[i].to(device), Vs[i].to(device) # torch.Size([4096, 16]) torch.Size([4096, 16])
                 #print( sigmas[i].shape ) # torch.Size([16])
-            recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
+
+            # PROJECTION
+            sigma, U, V, recon = project_from_AB_UV(As[i], Bs[i], U, V, type=type)
+            
+            #recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
+            recon = recon * norm_A[i] * norm_B[i]
+
             renorm_A = As[i] * norm_A[i]
             renorm_B = Bs[i] * norm_B[i]
             # Since normalized, this should not matter, both the As Bs and the U,V,sigma are normalized. Cancel each other out
