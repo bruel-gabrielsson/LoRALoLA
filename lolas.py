@@ -214,7 +214,7 @@ def diagonal_lora_pca_sparse_wrapper(As,Bs,r,niter=100, display=True, sparse_reg
     return U, V, sigmas
 
 # This expect lora to be W + AB^T
-def diagonal_lora_pca_sparse(A, B, r, niter=100, display=True, sparse_reg = 0):
+def diagonal_lora_pca_sparse(A, B, r, niter=100, display=True, sparse_reg = 0, tol=0.001):
     m = A[0].shape[0]
     n = B[0].shape[0]
     dataset_size = len(A)
@@ -353,7 +353,7 @@ def set_leaf_module(model, key_to_change, new_weight):
         target_module.weight = torch.nn.Parameter(new_weight)
 
 # cache is expected to be a dictionary of state_dicts, where the keys are the model_ids
-def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tol=0.001, transform_lora="none"):
+def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, transform_lora="none"):
 
     print("[!] lola_loras", "rank", r, "sparse_reg", sparse_reg)
 
