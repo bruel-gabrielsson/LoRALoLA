@@ -50,6 +50,7 @@ def loraEigenvalueIteration(A, B, weights, r, tol=0.001, printstatus=True):
             print(f'Iteration {i+1}: \t{fullSigmaObjective(A, B, weights, U, V)} \t{Uchange.item()} \t{Vchange.item()}')
 
         if max(Uchange, Vchange) < tol:
+            print(f'Converged after {i+1} iterations')
             return U, V
 
     return U, V
