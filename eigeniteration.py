@@ -78,13 +78,13 @@ if __name__ == "__main__":
     import pickle
     with open('/Users/rbg/Downloads/tensors_python.pkl', 'rb') as f:
         data = pickle.load(f)
-    A = [torch.tensor(m).to(device) for m in data['Bs']]
-    B = [torch.tensor(m).to(device).t() for m in data['As']]
+    A = [torch.tensor(m).to(device) for m in data['Bs']][:10]
+    B = [torch.tensor(m).to(device).t() for m in data['As']][:10]
 
     # A = [torch.randn(100, 50).to(device) for _ in range(10)]
     # B = [torch.randn(80, 50).to(device) for _ in range(10)]
     weights = compute_weights(A, B).to(device)
-    r = 4
+    r = 16
     tol = 0.001
 
     U, V = loraEigenvalueIteration(A, B, weights, r, tol)

@@ -486,7 +486,7 @@ def project_from_AB_UV(A, B, U, V, type="diagonal"):
         sigma = U.t() @ B @ A @ V
         recon = U @ sigma @ V.t()
     elif type == "SVD": # U, V are lists
-        U, V = U[0].to(device), V[0].to(device)
+        U, V = U.to(device), V.to(device)
 
         r = U.shape[1]
         assert(U.shape[1] == V.shape[1] == r)
