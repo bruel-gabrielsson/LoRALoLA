@@ -528,6 +528,7 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
             #print(org_state_dict) # 'base_model.model.model.layers.31.self_attn.k_proj.lora_B.default.weight'
             # KeyError: 'base_model.model.model.layers.0.self_attn.q_proj.lora_A.weight'
             A, B = org_state_dict[A_key], org_state_dict[B_key] # unnormalized
+            print(A,B)
             A, B = A.to(U.device), B.to(U.device)
 
             
