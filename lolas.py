@@ -48,11 +48,16 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             objectives[iter] = objective
 
         # U iteration
-        stack = []
-        for i in range(dataset_size):
-            prod = (V.t() @ B[i]) @ A[i].t()
-            stack.append(prod)
-        stack = torch.cat(stack, dim=0)
+        stack = torch.zeros((V.size(1) * dataset_size, A[0].size(0)), device=A[0].device)
+        for j in range(dataset_size):
+            prod = (V.t() @ B[j]) @ A[j].t()
+            stack[j * V.size(1):(j + 1) * V.size(1), :] = prod
+
+        # stack = []
+        # for i in range(dataset_size):
+        #     prod = (V.t() @ B[i]) @ A[i].t()
+        #     stack.append(prod)
+        # stack = torch.cat(stack, dim=0)
         oldU = U
 
         # batch_size, d_out, d_in = stack.shape 
@@ -70,11 +75,16 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             print('\tU difference: {}'.format(torch.norm(U - oldU, p='fro')))
 
         # V iteration
-        stack = []
-        for i in range(dataset_size):
-            prod = (U.t() @ A[i]) @ B[i].t()
-            stack.append(prod)
-        stack = torch.cat(stack, dim=0)
+        stack = torch.zeros((U.size(1) * dataset_size, B[0].size(0)), device=A[0].device)
+        for j in range(dataset_size):
+            prod = (U.t() @ A[j]) @ B[j].t()
+            stack[j * U.size(1):(j + 1) * U.size(1), :] = prod
+
+        # stack = []
+        # for i in range(dataset_size):
+        #     prod = (U.t() @ A[i]) @ B[i].t()
+        #     stack.append(prod)
+        # stack = torch.cat(stack, dim=0)
         oldV = V
         V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
         #V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
