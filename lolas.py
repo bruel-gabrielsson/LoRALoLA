@@ -622,7 +622,11 @@ def get_reconstruction_error(lolas_dict, type="full"):
                 #print( sigmas[i].shape ) # torch.Size([16])
 
             # PROJECTION
-            sigma, U, V, recon = project_from_AB_UV(As[i], Bs[i], U, V, type=type)
+            if type=="diagonal":
+                sigma = sigmas[i].to(device)
+                recon = U @ sigma @ V.t()
+            else:
+                sigma, U, V, recon = project_from_AB_UV(As[i], Bs[i], U, V, type=type)
             
             #recon = U @ sigmas[i].to(device) @ V.t() * norm_A[i] * norm_B[i]
             recon = recon * norm_A[i] * norm_B[i]
