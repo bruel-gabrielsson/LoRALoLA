@@ -6,6 +6,9 @@ from peft.utils.save_and_load import set_peft_model_state_dict, get_peft_model_s
 from .SVDiteration import full_lora_svd_wrapper
 from .eigeniteration import full_lora_eigen_wrapper
 
+from .ties_merging import merge_from_string
+
+
 # This expect lora to be W + AB^T
 def full_lora_pca(A, B, r, niter=10, display=True):
     m = A[0].shape[0]
@@ -469,6 +472,35 @@ def lola_loras(lora_module_list, cache, r=8, type="diagonal", sparse_reg=0, tran
                 Sigmas.append(torch.diag(S[:r]))
             
             U, V, sigmas = Us, Vs, Sigmas
+        
+
+        elif type == "TIES":
+            # Do TIES-Merging with all the LoRAs
+            # default_string = topk20_mass_dis-mean_none
+
+            # Us, Vs, Sigmas = [], [], []
+            """
+            Use merge_from_string("string_command", torch.stack({list of models}).reshape(len(sigmas), xx) )
+            """
+
+            # First, merge all the As
+            merge_string_input = "topk20_mass_dis-mean_none"
+
+            combination_A = merge_from_string(merge_string_input, 
+                                               torch.stack(As).reshape(len(As), As[0].shape[0] * As[0].shape[1]) 
+                                               )
+            combination_A_reshaped = combination_A.reshape(As[0].shape)
+
+            combination_B = merge_from_string(merge_string_input, 
+                                               torch.stack(Bs).reshape(len(Bs), Bs[0].shape[0] * Bs[0].shape[1]) 
+                                               )
+            combination_B_reshaped = combination_B.reshape(Bs[0].shape)
+
+            U = [combination_A_reshaped for _ in range(len(As))]
+            V = [combination_B_reshaped for _ in range(len(Bs))]
+            # sigmas = [torch.eye for _ in range(len(As))]
+            sigmas = [torch.eye(r) for _ in range(len(As))]
+
         else:
             raise ValueError("Invalid type")
 
