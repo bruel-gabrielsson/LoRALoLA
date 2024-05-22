@@ -19,12 +19,22 @@ def read_metrics(base_path):
                 path_parts = os.path.relpath(root, base_path).split(os.sep)
                 experiment = path_parts[0]
                 model_type_raw = path_parts[1]
-                model_type = int(model_type_raw[9 : -8])
+
+                # print("path_parts =", path_parts)
+                # print("model_type_raw =", model_type_raw)
+
+                useful_string = model_type_raw.split("_")[1]
+                model_type = int(useful_string[1:-5])
+
+                # model_type = int(model_type_raw[9 : -8])
                 task = path_parts[2]
                 rank_raw = path_parts[3]
                 rank_raw_list = rank_raw.split("_")
                 rank = int(rank_raw_list[1])
                 merge_type = rank_raw_list[3]
+
+                # if merge_type == "TIES":
+                #     model_type = "TIES"
 
                 results.append({
                     "experiment": experiment,
@@ -65,30 +75,56 @@ def read_metrics(base_path):
             elif file == "lora_model_metrics.json":
 
                 # print("os.path.join(root, file) =", os.path.join(root, file))
+                if "TIES" not in os.path.join(root, file):
 
-                metrics_file = os.path.join(root, file)
-                with open(metrics_file, 'r') as f:
-                    metrics = json.load(f)
+                    metrics_file = os.path.join(root, file)
+                    with open(metrics_file, 'r') as f:
+                        metrics = json.load(f)
+                    
+                    path_parts = os.path.relpath(root, base_path).split(os.sep)
+                    experiment = path_parts[0]
+
+                    model_type = "lora"
+                    task = path_parts[2]
+
+                    rank = 0
+                    merge_type = "lora"
+
+                    results.append({
+                        "experiment": experiment,
+                        "model_type": model_type,
+                        "task": task,
+                        "rank": rank,
+                        "merge_type": merge_type,
+                        "exact_match": metrics["exact_match"],
+                        "rouge1": metrics["rouge1"],
+                        "rougeL": metrics["rougeL"]
+                    })
                 
-                path_parts = os.path.relpath(root, base_path).split(os.sep)
-                experiment = path_parts[0]
+                else:
+                    metrics_file = os.path.join(root, file)
+                    with open(metrics_file, 'r') as f:
+                        metrics = json.load(f)
+                    
+                    path_parts = os.path.relpath(root, base_path).split(os.sep)
+                    experiment = path_parts[0]
 
-                model_type = "lora"
-                task = path_parts[2]
+                    model_type = "ties"
+                    task = path_parts[2]
 
-                rank = 0
-                merge_type = "lora"
+                    rank = 0
+                    merge_type = "ties"
 
-                results.append({
-                    "experiment": experiment,
-                    "model_type": model_type,
-                    "task": task,
-                    "rank": rank,
-                    "merge_type": merge_type,
-                    "exact_match": metrics["exact_match"],
-                    "rouge1": metrics["rouge1"],
-                    "rougeL": metrics["rougeL"]
-                })
+                    results.append({
+                        "experiment": experiment,
+                        "model_type": model_type,
+                        "task": task,
+                        "rank": rank,
+                        "merge_type": merge_type,
+                        "exact_match": metrics["exact_match"],
+                        "rouge1": metrics["rouge1"],
+                        "rougeL": metrics["rougeL"]
+                    })
 
 
     return results
@@ -140,17 +176,21 @@ def plot_bar_with_error(data, model_type):
 Automatically generate the Latex code
 """
 model_type_list = [10, 50, 100, 500]
-merge_type_list = ["diagonal", "full"]
+merge_type_list = ["diagonal", "full",]
 ranks = [16, 32, 64, 128, 256]
 
 def generate_latex_table(raw_df, tasks, tasks_short):
 
-    metric_to_check = "rougeL"
+    metric_to_check = "rougeL" # exact_match   rouge1   rougeL
+    # metric_to_check = "rouge1"
+    # metric_to_check = "exact_match" 
+
+    compress_matrix_string = "gpu_comp_rate"
 
     latex_code = r'''
-    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c}
+    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|c}
     \toprule
-    \multirow{2}{*}{Model Type} & \multirow{2}{*}{Method Type} & \multicolumn{10}{c}{Tasks} & \multirow{2}{*}{Average} \\
+    \multirow{2}{*}{Model Type} & \multirow{2}{*}{Method Type} & \multicolumn{10}{c}{Tasks} & \multirow{2}{*}{Average} & \multirow{2}{*}{Compression} \\
     \cmidrule{3-12}
     & & ''' + ' & '.join(tasks_short) + r''' & \\
     \midrule
@@ -175,9 +215,34 @@ def generate_latex_table(raw_df, tasks, tasks_short):
         task_metrics = get_task_metrics(filtered_df, metric_to_check)
         average_metric = filtered_df[metric_to_check].mean()
         std_metric = filtered_df[metric_to_check].std()
-        latex_code += f'& {model_type} & ' + ' & '.join(task_metrics) + f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}} \\\\ \n'
+
+        comp_rate = filtered_df[compress_matrix_string].mean() 
+        latex_code += f'& {model_type} & ' + ' & '.join(task_metrics) + \
+            f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}}' + f'& {comp_rate:.2f} \\\\ \n'
 
     latex_code += r'\midrule\midrule' + '\n'
+
+    # TIES results
+    latex_code += r'\multirow{5}{*}{' + 'TIES}' + '\n'
+    for model_type in model_type_list:
+        
+        for rank in [0]:
+            method_type = f'{rank} D'
+
+            filtered_df = raw_df[(raw_df["model_type"] == model_type) & (raw_df["merge_type"] == "TIES") & (raw_df["rank"] == rank)]
+            task_metrics = get_task_metrics(filtered_df, metric_to_check)
+            average_metric = filtered_df[metric_to_check].mean()
+            std_metric = filtered_df[metric_to_check].std()
+
+            comp_rate = filtered_df[compress_matrix_string].mean() 
+
+            latex_code += f'& {model_type} & ' + ' & '.join(task_metrics) + \
+                  f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}}' + f' & {comp_rate:.2f} \\\\ \n'
+        # latex_code += r'\midrule' + '\n'
+
+            
+    latex_code += r'\midrule' + '\n'
+    latex_code += r'\midrule' + '\n'
 
     # SVD results
     svd_ranks = [2, 4, 8, 16]
@@ -188,7 +253,11 @@ def generate_latex_table(raw_df, tasks, tasks_short):
         task_metrics = get_task_metrics(filtered_df, metric_to_check)
         average_metric = filtered_df[metric_to_check].mean()
         std_metric = filtered_df[metric_to_check].std()
-        latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}} \\\\ \n'
+
+        comp_rate = filtered_df[compress_matrix_string].mean() 
+
+        latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + \
+                f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}} ' +  f' & {comp_rate:.2f} \\\\ \n'
     latex_code += r'\midrule\midrule' + '\n'
 
 
@@ -202,7 +271,11 @@ def generate_latex_table(raw_df, tasks, tasks_short):
             task_metrics = get_task_metrics(filtered_df, metric_to_check)
             average_metric = filtered_df[metric_to_check].mean()
             std_metric = filtered_df[metric_to_check].std()
-            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}} \\\\ \n'
+
+            comp_rate = filtered_df[compress_matrix_string].mean() 
+
+            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + \
+                  f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}}' + f' & {comp_rate:.2f} \\\\ \n'
         latex_code += r'\midrule' + '\n'
 
         latex_code += r'\multirow{5}{*}{' + f'{model_type}' + ' full (F)}' + '\n'
@@ -212,7 +285,11 @@ def generate_latex_table(raw_df, tasks, tasks_short):
             task_metrics = get_task_metrics(filtered_df, metric_to_check)
             average_metric = filtered_df[metric_to_check].mean()
             std_metric = filtered_df[metric_to_check].std()
-            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}} \\\\ \n'
+
+            comp_rate = filtered_df[compress_matrix_string].mean() 
+
+            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric:.2f} \\scriptsize{{$\\pm$ {std_metric:.2f}}}' + f' & {comp_rate:.2f} \\\\ \n'
+            
         latex_code += r'\midrule' + '\n'
         latex_code += r'\midrule' + '\n'
 
@@ -224,9 +301,9 @@ def generate_normalized_latex_table(raw_df, tasks, tasks_short):
     metric_to_check = "rougeL"
 
     latex_code = r'''
-    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c}
+    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|c}
     \toprule
-    \multirow{2}{*}{Model Type} & \multirow{2}{*}{Method Type} & \multicolumn{10}{c}{Tasks} & \multirow{2}{*}{Average} \\
+    \multirow{2}{*}{Model Type} & \multirow{2}{*}{Method Type} & \multicolumn{10}{c}{Tasks} & \multirow{2}{*}{Average} & \multirow{2}{*}{Compression} \\
     \cmidrule{3-12}
     & & ''' + ' & '.join(tasks_short) + r''' & \\
     \midrule
@@ -306,8 +383,8 @@ def generate_normalized_latex_table(raw_df, tasks, tasks_short):
                 average_metric = '-'
             else:
                 average_metric = f'{sum(task_metrics_ave) / len(task_metrics_ave):.2f}'
-
-            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric} \\\\ \n'
+            comp_rate = filtered_df["total_comp_rate"].mean()
+            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric} ' + f' & {comp_rate}  \\\\ \n'
         latex_code += r'\midrule' + '\n'
 
         latex_code += r'\multirow{5}{*}{' + f'{model_type}' + ' full (F)}' + '\n'
@@ -324,7 +401,9 @@ def generate_normalized_latex_table(raw_df, tasks, tasks_short):
             else:
                 average_metric = f'{sum(task_metrics_ave) / len(task_metrics_ave):.2f}'
 
-            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric} \\\\ \n'
+            comp_rate = filtered_df["total_comp_rate"].mean()
+
+            latex_code += f'& {method_type} & ' + ' & '.join(task_metrics) + f' & {average_metric}' + f' & {comp_rate} \\\\ \n'
         latex_code += r'\midrule' + '\n'
 
     latex_code += r'\end{tabular}'
@@ -334,6 +413,7 @@ def generate_normalized_latex_table(raw_df, tasks, tasks_short):
 if __name__ == "__main__":
 
     base_path = '/Users/jiachengzhu/Desktop/DoResearch/WritingPaper/2024_LoRA_Merging/in-distribution'  # Replace with the actual path to your data
+    # base_path = '/Users/jiachengzhu/Desktop/DoResearch/WritingPaper/2024_LoRA_Merging/in-distribution_pr_copy'  # Replace with the actual path to your data
     
     # Read the metrics data as a list of dictionaries
     metrics_data = read_metrics(base_path, )
@@ -345,8 +425,10 @@ if __name__ == "__main__":
     pd.set_option('display.width', None)  # No line width limit
     pd.set_option('display.max_colwidth', None)  # No limit for column width
 
-    print(df)
+    # print(df)
     print("=" * 10, "\n")
+
+    # exit()
 
     # Get the unique task names
     task_names = list(df['task'].unique())
@@ -364,7 +446,7 @@ if __name__ == "__main__":
     # exit()
 
     """
-    Find the 
+    Find the relative performance of each model type
     """
     df_base = df[df['model_type'] == 'base']
     df_base = df_base.drop_duplicates(subset=['task', 'merge_type']).set_index('task')
@@ -379,7 +461,8 @@ if __name__ == "__main__":
 
     # Compute (xx - base) / (lora - base) for all other model types
     for col in ['exact_match', 'rouge1', 'rougeL']:
-        df[col] = (df[col] - df[f'{col}_base']) / (df[f'{col}_lora'] - df[f'{col}_base'])
+        # df[col] = (df[col] - df[f'{col}_base']) / (df[f'{col}_lora'] - df[f'{col}_base'])
+        df[col] = (df[col]) / (df[f'{col}_lora'])
 
     # Reset index and keep only necessary columns
     df = df.reset_index()
@@ -387,6 +470,42 @@ if __name__ == "__main__":
 
     # Display the result DataFrame
     # print(df)
+
+    """
+    Insert compression rate
+    Per-model GPU compression rate
+    """
+    def compute_comp_rate(row):
+        if row['merge_type'] == 'diagonal':
+            return 1 - (row['rank'] / 131072) # 16*4096*2 = 131072
+        elif row['merge_type'] == 'full':
+            return 1 - ((row['rank'] ** 2) / 131072)
+        elif row['merge_type'] == 'SVD':
+            return 1 - (row['rank'] * 4096 * 2 / 131072)
+        elif row['merge_type'] == 'TIES':
+            return 0
+        else:
+            return 0  # or some default value if needed
+    
+    # Total compression rate
+    def compute_comp_rate_2(row):
+        if row['merge_type'] == 'diagonal':
+            return 1 - ((row['rank'] * 4096 * 2 + int(row["model_type"]) * row['rank']) / (int(row["model_type"]) * 131072))
+        elif row['merge_type'] == 'full':
+            return 1 - ((row['rank'] * 4096 * 2 +  int(row["model_type"]) * (row['rank']**2))/ (int(row["model_type"]) * 131072))
+        elif row['merge_type'] == 'SVD':
+            return 1 - ((row['rank'] * 4096 * 2) / (131072))
+        elif row['merge_type'] == 'TIES':
+            return 1 - 1 / int(row["model_type"])
+        else:
+            return 0
+    
+    df['total_comp_rate'] = df.apply(compute_comp_rate_2, axis=1)
+    df["gpu_comp_rate"] = df.apply(compute_comp_rate, axis=1)
+
+    print(df)
+
+    # exit()
 
     latex_code = generate_latex_table(df, task_names, task_names_short)
     print(latex_code)
