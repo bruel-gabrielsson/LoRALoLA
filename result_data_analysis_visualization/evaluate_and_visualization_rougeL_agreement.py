@@ -5,6 +5,13 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
+def load_json(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
 def compare_predictions(baseline_preds, new_preds):
     if not baseline_preds or not new_preds:
         return 0
@@ -15,6 +22,7 @@ def compare_predictions(baseline_preds, new_preds):
 def read_metrics(base_path):
     results = []
     results_agreement = []
+    results_loss = []
 
     for root, dirs, files in os.walk(base_path):
         for file in files:
@@ -38,6 +46,26 @@ def read_metrics(base_path):
                     "predictions": predictions,
                 })
                 # Later you run compare_predictions(lora_predictions, lola_predictions) on the predictions to get the agreement percentage
+
+            if file == "evals.json":
+                loss = load_json(os.path.join(root, file))[0]['eval_test_loss']
+                path_parts = os.path.relpath(root, base_path).split(os.sep)
+                experiment = path_parts[0]
+                model_type_raw = path_parts[1]
+                # model_type = int(model_type_raw[9 : -8])
+                task = path_parts[2]
+                rank_raw = path_parts[3]
+                rank_raw_list = rank_raw.split("_")
+                rank = int(rank_raw_list[1])
+                merge_type = rank_raw_list[3]
+                results_loss.append({
+                    "experiment": experiment,
+                    "model_type": model_type,
+                    "task": task,
+                    "rank": rank,
+                    "merge_type": merge_type,
+                    "loss": loss,
+                })
 
             if file == "lola_model_metrics.json":
                 metrics_file = os.path.join(root, file)
