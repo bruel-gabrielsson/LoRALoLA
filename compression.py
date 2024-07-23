@@ -61,7 +61,7 @@ def full_lora_pca(A, B, r, niter=10, display=True):
         oldU = U
 
         q = r + 2
-        if stack.t().size(0) < q: # cannot have a bigger q than the number of rows in stack
+        if stack.t().size(0) < q or stack.t().size(1) < q: # cannot have a bigger q than the number of rows or columns
             q = stack.t().size(0)
             print("Warning: q is too big, reducing to {}".format(q))
         U = torch.svd_lowrank(stack.t(), q=q, niter=2)[0][:,:r]
