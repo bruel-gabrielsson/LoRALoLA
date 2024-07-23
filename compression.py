@@ -77,7 +77,7 @@ def full_lora_pca(A, B, r, niter=10, display=True):
             stack[j * U.size(1):(j + 1) * U.size(1), :] = prod
 
         oldV = V
-        V = torch.svd_lowrank(stack.t(), q=r+2, niter=2)[0][:,:r]
+        V = torch.svd_lowrank(stack.t(), q=q, niter=2)[0][:,:r]
         #V = torch.linalg.svd(stack, full_matrices=False)[2].t()[:, :r]
 
         if display:
