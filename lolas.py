@@ -221,6 +221,9 @@ def set_lora_from_dict(model, lolas_dict, lora_module_list, return_only_lora, ty
 
     return final_state_dict
 
+def reconstruction_error(A,B,recon,device=torch.device('cpu')):
+    return torch.pow( torch.norm(B.to(device) @ A.to(device) - recon, p='fro') / torch.norm(B.to(device) @ A.to(device), p='fro'), 2).item()
+
 # return recon_matrix rows of models, columns of layers
 def get_reconstruction_error(lolas_dict, type="full", project=False):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
