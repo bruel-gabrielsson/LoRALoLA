@@ -1,3 +1,5 @@
+import torch
+
 # If you want to change the complete weight tensor, you can use the following function. This is the case when the new shape of the weight tensor is different from the old one.
 def set_leaf_module(model, key_to_change, new_weight):
     # Split the key to navigate through the model's hierarchy
